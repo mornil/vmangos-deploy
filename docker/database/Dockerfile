@@ -1,5 +1,5 @@
 # vmangos-deploy
-# Copyright (C) 2023-present  Michael Serajnik  https://github.com/mserajnik
+# Copyright (C) 2023-2025  Michael Serajnik  https://github.com/mserajnik
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -15,22 +15,22 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG VMANGOS_WORLD=world_full_14_june_2021
 ARG VMANGOS_OWNER=vmangos
 ARG VMANGOS_REPOSITORY=core
 ARG VMANGOS_REVISION=development
 ARG VMANGOS_DB_OWNER=brotalnia
 ARG VMANGOS_DB_REPOSITORY=database
+ARG VMANGOS_DB_DUMP=world_full_14_june_2021
 
 FROM mariadb:11.4 AS setup
 
 ARG DEBIAN_FRONTEND
-ARG VMANGOS_WORLD
 ARG VMANGOS_OWNER
 ARG VMANGOS_REPOSITORY
 ARG VMANGOS_REVISION
 ARG VMANGOS_DB_OWNER
 ARG VMANGOS_DB_REPOSITORY
+ARG VMANGOS_DB_DUMP
 
 RUN \
   apt update -y && \
@@ -54,8 +54,8 @@ RUN \
   mv logs_db_updates.sql /sql/migrations && \
   mv world_db_updates.sql /sql/migrations && \
   cd /database && \
-  7z e ${VMANGOS_WORLD}.7z && \
-  mv ${VMANGOS_WORLD}.sql /sql/world.sql && \
+  7z e ${VMANGOS_DB_DUMP}.7z && \
+  mv ${VMANGOS_DB_DUMP}.sql /sql/world.sql && \
   rm -rf /core /database && \
   apt remove -y \
     git \
@@ -75,7 +75,7 @@ ENV VMANGOS_REALMLIST_PORT=8085
 ENV VMANGOS_REALMLIST_ICON=1
 ENV VMANGOS_REALMLIST_TIMEZONE=0
 ENV VMANGOS_REALMLIST_ALLOWED_SECURITY_LEVEL=0
-# See https://github.com/MariaDB/mariadb-docker/blob/4e20774a56c8fb93cec9ee9d4a5b476bc0f8dd0d/11.4/docker-entrypoint.sh#L589-L593
+# See https://github.com/MariaDB/mariadb-docker/blob/64252135052f269ed2bb57134ad73537e93b7ab6/11.4/docker-entrypoint.sh#L594-L598
 ENV MARIADB_AUTO_UPGRADE=1
 
 COPY --from=setup /sql /sql

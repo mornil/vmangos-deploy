@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # vmangos-deploy
-# Copyright (C) 2023-present  Michael Serajnik  https://github.com/mserajnik
+# Copyright (C) 2023-2025  Michael Serajnik  https://github.com/mserajnik
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # This entrypoint script is based on
-# https://github.com/MariaDB/mariadb-docker/blob/4e20774a56c8fb93cec9ee9d4a5b476bc0f8dd0d/11.4/docker-entrypoint.sh
+# https://github.com/MariaDB/mariadb-docker/blob/64252135052f269ed2bb57134ad73537e93b7ab6/11.4/docker-entrypoint.sh
 # and might need to get adjusted when the original script gets updated.
 # Formatting, comments and commented out code from the original script have
 # been preserved, where possible, to make it easier to compare this script to
@@ -27,7 +27,7 @@ set -eo pipefail
 
 source "$(which docker-entrypoint.sh)"
 
-# This is a temporary copy of the `§docker_mariadb_upgrade()` function from the
+# This is a temporary copy of the `docker_mariadb_upgrade()` function from the
 # original entrypoint script. It has the `--upgrade-system-tables` option
 # removed from the `mariadb-upgrade` command because we also want to upgrade
 # user tables. Once https://github.com/MariaDB/mariadb-docker/pull/567 gets
@@ -41,8 +41,7 @@ docker_mariadb_upgrade_including_user_tables() {
   fi
   mysql_note "Starting temporary server"
   docker_temp_server_start "$@" --skip-grant-tables \
-    --loose-innodb_buffer_pool_dump_at_shutdown=0 \
-    --skip-slave-start
+    --loose-innodb_buffer_pool_dump_at_shutdown=0
   mysql_note "Temporary server started."
 
   docker_mariadb_backup_system
@@ -67,8 +66,7 @@ EOSQL
       # need a restart as FLUSH PRIVILEGES isn't reversable
       mysql_note "Restarting temporary server for upgrade"
       docker_temp_server_start "$@" --skip-grant-tables \
-        --loose-innodb_buffer_pool_dump_at_shutdown=0 \
-        --skip-slave-start
+        --loose-innodb_buffer_pool_dump_at_shutdown=0
     else
       return 0
     fi

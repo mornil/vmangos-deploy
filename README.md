@@ -1,33 +1,37 @@
-# vmangos-deploy [![GitHub Actions status][actions-status-badge]][actions-status]
+# vmangos-deploy [![Latest VMaNGOS build][vmangos-revision-badge]][vmangos] [![GitHub Actions status][actions-status-badge]][actions-status]
 
 > A Docker setup for VMaNGOS
 
 This is a simplified Docker setup for [VMaNGOS][vmangos] based on my
 [previous project][vmangos-docker]. It aims to improve upon its foundation
-while providing a much nicer experience for the user.
+while providing a much nicer experience for the user and features a number of
+big improvements:
 
-It features:
++ __Prebuilt Docker images for both `x86_64` and `aarch64`, leveraging GitHub__
+  __Actions:__ you no longer need to spend a lot of time re-compiling VMaNGOS
+  every time you want to update. In addition, the Docker images have been
+  completely rewritten and optimized for size and previously redundant images
+  have been merged into a single one
++ __The ability to run VMaNGOS configured for any of its supported client__
+  __versions:__ prebuilt images for all versions ranging from `1.6.1.4544` to
+  `1.12.1.5875` are provided
++ __Seamless automated database migrations:__ by pulling the latest Docker
+  images and recreating the containers, migrations are applied automatically to
+  keep your database up-to-date
++ __A more transparent and easier to follow user experience:__ due to the
+  prebuilt images the number of different commands that need to be run to
+  manage the server has been greatly reduced and thus it is no longer necessary
+  to use various scripts to install, update and manage VMaNGOS. Instead, you
+  can simply use the Docker CLI (or any other tool that is able to manage
+  Docker containers)
++ __A much tidier repository structure:__ the VMaNGOS configuration can be
+  found in [`./config`](config), everything else that is shared between the
+  containers and your host system lives inside [`./storage`](storage)
 
-+ Prebuilt Docker images for both `x86_64` and `aarch64`, leveraging GitHub
-  Actions; you no longer need to spend a lot of time re-compiling VMaNGOS every
-  time you want to update. The Docker images have been completely rewritten and
-  optimized for size and previously redundant images have been merged into a
-  single one
-+ The ability to run VMaNGOS configured for any of its supported client
-  versions (with or without anticheat support); prebuilt images for all
-  versions ranging from `1.6.1.4544` to `1.12.1.5875` are provided
-+ A more transparent and easier to follow user experience; due to the prebuilt
-  Docker images the number of different commands that need to be run to manage
-  the server has been greatly reduced and thus it is no longer necessary to use
-  various scripts to install, update and manage VMaNGOS. Instead, you can
-  simply use the Docker CLI (or any other tool that is able to manage Docker
-  containers)
-+ A much tidier repository structure; the server configuration can be found in
-  [`./config`](config), everything else that is shared between the server and
-  your host system lives inside [`./storage`](storage)
-
-The Docker images are automatically built every day (unless there have been no
-new commits to VMaNGOS).
+The Docker images are built daily, unless there have been no new commits to
+VMaNGOS. Additionally, every Monday, the latest images are rebuilt to ensure
+that all included software and dependencies are up-to-date, even if there have
+been no updates to VMaNGOS itself.
 
 ## Table of contents
 
@@ -37,12 +41,14 @@ new commits to VMaNGOS).
     + [Cloning the repository and adjusting the VMaNGOS configuration](#cloning-the-repository-and-adjusting-the-vmangos-configuration)
     + [Adjusting the Docker Compose configuration](#adjusting-the-docker-compose-configuration)
     + [Extracting the client data](#extracting-the-client-data)
+    + [Providing the Warden modules (optional)](#providing-the-warden-modules-optional)
 + [Usage](#usage)
   + [Starting VMaNGOS](#starting-vmangos)
   + [Observing the VMaNGOS output](#observing-the-vmangos-output)
   + [Creating the first account](#creating-the-first-account)
   + [Stopping VMaNGOS](#stopping-vmangos)
   + [Updating](#updating)
+    + [Breaking changes](#breaking-changes)
   + [Creating database backups](#creating-database-backups)
   + [Accessing the database](#accessing-the-database)
   + [Database security](#database-security)
@@ -88,34 +94,26 @@ Next, adjust your `compose.yaml`. The first thing to decide on is the Docker
 image version you want to use based on the client version the server should
 support. You can choose from the following versions:
 
-| Supported client version | Image tags                                                                                 |
-| ------------------------ | ------------------------------------------------------------------------------------------ |
-| `1.12.1.5875`            | `ghcr.io/mserajnik/vmangos-server:5875`, `ghcr.io/mserajnik/vmangos-server:5875-anticheat` |
-| `1.11.2.5464`            | `ghcr.io/mserajnik/vmangos-server:5464`, `ghcr.io/mserajnik/vmangos-server:5464-anticheat` |
-| `1.10.2.5302`            | `ghcr.io/mserajnik/vmangos-server:5302`, `ghcr.io/mserajnik/vmangos-server:5302-anticheat` |
-| `1.9.4.5086`             | `ghcr.io/mserajnik/vmangos-server:5086`, `ghcr.io/mserajnik/vmangos-server:5086-anticheat` |
-| `1.8.4.4878`             | `ghcr.io/mserajnik/vmangos-server:4878`, `ghcr.io/mserajnik/vmangos-server:4878-anticheat` |
-| `1.7.1.4695`             | `ghcr.io/mserajnik/vmangos-server:4695`, `ghcr.io/mserajnik/vmangos-server:4695-anticheat` |
-| `1.6.1.4544`             | `ghcr.io/mserajnik/vmangos-server:4544`, `ghcr.io/mserajnik/vmangos-server:4544-anticheat` |
+| Supported client version | Image tag                               |
+| ------------------------ | --------------------------------------- |
+| `1.12.1.5875`            | `ghcr.io/mserajnik/vmangos-server:5875` |
+| `1.11.2.5464`            | `ghcr.io/mserajnik/vmangos-server:5464` |
+| `1.10.2.5302`            | `ghcr.io/mserajnik/vmangos-server:5302` |
+| `1.9.4.5086`             | `ghcr.io/mserajnik/vmangos-server:5086` |
+| `1.8.4.4878`             | `ghcr.io/mserajnik/vmangos-server:4878` |
+| `1.7.1.4695`             | `ghcr.io/mserajnik/vmangos-server:4695` |
+| `1.6.1.4544`             | `ghcr.io/mserajnik/vmangos-server:4544` |
 
 Adjust the configured `image` for the `realmd` and `mangosd` services based on
 this table. E.g., if you want to run a server that supports client version
-`1.6.1.4544` you would use `ghcr.io/mserajnik/vmangos-server:4544`. In
-addition, if you want to enable the movement anticheat and/or Warden, choose an
-image suffixed with `-anticheat` (such as
-`ghcr.io/mserajnik/vmangos-server:4544-anticheat`). If want to use Warden you
-will also have to provide the [Warden modules][warden-modules]. See the
-`volumes` section of the `mangosd` service in your `compose.yaml` on how to do
-that. Note that the Warden modules are only available for `x86_64`, so you will
-not be able to use Warden when using `aarch64` images.
+`1.6.1.4544` you would use `ghcr.io/mserajnik/vmangos-server:4544`.
 
 Instead of using the latest build you can also use a specific VMaNGOS commit.
 To allow for this, the `vmangos-database` image is tagged with the commit hash
 (e.g., `vmangos-database:e87d583a5e50ad49f12a716fb408b393d3c21103`) and the
-`vmangos-server` image tag is suffixed with the commit hash (e.g., `vmangos-server:5875-e87d583a5e50ad49f12a716fb408b393d3c21103` or
-`vmangos-server:5875-anticheat-e87d583a5e50ad49f12a716fb408b393d3c21103`) so
-you can still select the supported client version and choose whether you want
-anticheat support or not.
+`vmangos-server` image tag is suffixed with the commit hash (e.g.,
+`vmangos-server:5875-e87d583a5e50ad49f12a716fb408b393d3c21103`) so you can
+still select the supported client version.
 
 When you decide to use a specific commit you should always make sure to use the
 same one for the `vmangos-server` and the `vmangos-database` images so there
@@ -128,8 +126,8 @@ will be a build for every single VMaNGOS commit; you can find all the available
 versions for the `vmangos-server` and the `vmangos-database` images
 [here][image-vmangos-server-versions] and
 [here][image-vmangos-database-versions] respectively. Older images are
-automatically deleted; only the images from the last 22 builds are kept (which
-usually means the builds from the last 22 days, unless there have been builds
+automatically deleted; only the images from the last 45 builds are kept (which
+generally means the builds from the last 45 days, unless there have been builds
 outside of the normal daily schedule or there have been no VMaNGOS commits on
 some days).
 
@@ -139,6 +137,11 @@ want to adjust the `TZ` (time zone) environment variable for each service. The
 `VMANGOS_REALMLIST_*` environment variables of the `database` service should
 also be of interest; changing `VMANGOS_REALMLIST_ADDRESS` to a LAN IP, a WAN IP
 or a domain name is required if you want to allow non-local connections.
+
+Also take note of the `healthcheck` sections; if you are on a low end system
+you may have to adjust the `start_period` setting so that the initial database
+creation process will be able to complete in time before the healthcheck
+considers the container unhealthy and causes a restart.
 
 Anything else that is not commented is likely something you do not not have to
 (or, in some cases, _must not_) adjust; this applies to everything including
@@ -187,6 +190,12 @@ Once the extraction is finished you can find the data in
 you may want to re-run the process in the future if VMaNGOS makes changes (to
 benefit from potentially improved mob pathing etc.).
 
+### Providing the Warden modules (optional)
+
+Optionally, if want to use Warden you have to provide the
+[Warden modules][warden-modules]. See the `volumes` section of the `mangosd`
+service in your `compose.yaml` on how to do that.
+
 ## Usage
 
 ### Starting VMaNGOS
@@ -200,7 +209,10 @@ docker compose up -d
 
 This pulls the Docker images first and afterwards automatically creates and
 starts the containers. Note that during the first startup it might take a
-little longer until the server becomes available due to the database creation.
+little longer until the server becomes available due to the initial database
+creation. __Make sure to not (accidentally) stop VMaNGOS before the database__
+__creation process has finished;__ otherwise, you will likely end up with a
+broken database and will have to delete and re-create it.
 
 ### Observing the VMaNGOS output
 
@@ -260,13 +272,54 @@ Note that using a specific VMaNGOS commit will obviously prevent you from
 updating (but attempting to do so is not harmful, it just will not have any
 effect).
 
-It is also recommended to regularly check this repository (either manually or
-by updating your local repository via `git pull`). Usually, the commits here
-will just consist of maintenance and potentially new VMaNGOS configuration
-options (that you may want to incorporate into your configuration). Sometimes,
-there may be new features or changes that require manual intervention. While
-there should never be anything that breaks your setup, changes in VMaNGOS may
-require new bind mounts or other things.
+#### Breaking changes
+
+It is recommended to regularly check this repository (either manually or by
+updating your local repository via `git pull`). Usually, the commits here will
+just consist of maintenance and potentially new VMaNGOS configuration options
+(that you may want to incorporate into your configuration). Sometimes, there
+may be new features or changes that require manual intervention. Such breaking
+changes will be listed here (and removed again once they become irrelevant),
+sorted by newest first:
+
++ __[2024-12-26] - Migration edits in__
+  __[`vmangos/core@a722ebb`](https://github.com/vmangos/core/commit/a722ebb5f4a6c3d0fe4e242f2cf22a60f33cbec1):__
+  if you have already run the affected migration before it has been edited in
+  this commit, you will have to either manually edit your database to reflect
+  these changes or alternatively re-create the world database and run
+  migrations again. To do the latter, you can simply mount the initial database
+  dump as described [here][world-db-dump-mount]. Make sure your Docker images
+  are newer than the commit mentioned above before re-creating the database via
+  this method.
++ __[2024-10-31] - Removal of separate images with anticheat support:__
+  As of
+  [`vmangos/core@fbbc4ae`](https://github.com/vmangos/core/commit/fbbc4ae899f876a78a37d8fee805dce40a182331)
+  VMaNGOS no longer supports building without anticheat support, thus anticheat
+  is always available and there is no longer a need for separate images. If
+  you were using one of the anticheat images (which were suffixed with
+  `-anticheat`), simply switch to the regular version of that image.
++ __[2024-10-29] - Migration edits in__
+  __[`vmangos/core@e3f0547`](https://github.com/vmangos/core/commit/e3f0547b9973cbb72e250f04362ebf35db388939)__
+  __and__
+  __[`vmangos/core@ebf9cd8`](https://github.com/vmangos/core/commit/ebf9cd81f88de62dd85f8f127ed91cf7e690da3d):__
+  if you have already run the affected migrations before they have been edited
+  in these commits, you will have to either manually edit your database to
+  reflect these changes or alternatively re-create the world database and run
+  migrations again. To do the latter, you can simply mount the initial database
+  dump as described [here][world-db-dump-mount]. Make sure your Docker images
+  are newer than the commits mentioned above before re-creating the database
+  via this method.
++ __[2024-09-25] - Migration edits in__
+  __[`vmangos/core@4bad448`](https://github.com/vmangos/core/commit/4bad44863a1d079b62d79e4afc22da49b56cce80)__
+  __and__
+  __[`vmangos/core@8ab4fbf`](https://github.com/vmangos/core/commit/8ab4fbf3b2df90d84c8a98905da3371a1418ff47):__
+  if you have already run the affected migrations before they have been edited
+  in these commits, you will have to either manually edit your database to
+  reflect these changes or alternatively re-create the world database and run
+  migrations again. To do the latter, you can simply mount the initial database
+  dump as described [here][world-db-dump-mount]. Make sure your Docker images
+  are newer than the commits mentioned above before re-creating the database
+  via this method.
 
 ### Creating database backups
 
@@ -320,7 +373,9 @@ You are welcome to help out!
 [phpymadmin]: https://www.phpmyadmin.net/
 [vmangos]: https://github.com/vmangos/core
 [vmangos-docker]: https://github.com/mserajnik/vmangos-docker
+[vmangos-revision-badge]: https://img.shields.io/endpoint?url=https%3A%2F%2Fscripts.mser.at%2Fvmangos-deploy-revision%2Fbadge.json
 [warden-modules]: https://github.com/vmangos/warden_modules
+[world-db-dump-mount]: https://github.com/mserajnik/vmangos-deploy/blob/master/compose.yaml.example#L20-L34
 
 [actions-status]: https://github.com/mserajnik/vmangos-deploy/actions
 [actions-status-badge]: https://github.com/mserajnik/vmangos-deploy/actions/workflows/build-docker-images.yaml/badge.svg

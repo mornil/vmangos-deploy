@@ -1,5 +1,5 @@
 # vmangos-deploy
-# Copyright (C) 2023-present  Michael Serajnik  https://github.com/mserajnik
+# Copyright (C) 2023-2025  Michael Serajnik  https://github.com/mserajnik
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -16,10 +16,10 @@
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VMANGOS_CLIENT_VERSION=5875
-ARG VMANGOS_USE_ANTICHEAT=0
 ARG VMANGOS_OWNER=vmangos
 ARG VMANGOS_REPOSITORY=core
 ARG VMANGOS_REVISION=development
+ARG VMANGOS_PATCHES_REPOSITORY
 ARG VMANGOS_USER_ID=1000
 ARG VMANGOS_GROUP_ID=1000
 ARG VMANGOS_USER_NAME=vmangos
@@ -29,10 +29,10 @@ FROM ubuntu:24.04 AS build
 
 ARG DEBIAN_FRONTEND
 ARG VMANGOS_CLIENT_VERSION
-ARG VMANGOS_USE_ANTICHEAT
 ARG VMANGOS_OWNER
 ARG VMANGOS_REPOSITORY
 ARG VMANGOS_REVISION
+ARG VMANGOS_PATCHES_REPOSITORY
 
 RUN \
   apt update -y && \
@@ -41,39 +41,48 @@ RUN \
     cmake \
     git \
     libace-dev \
+    libcurl4-openssl-dev \
     libmysqlclient-dev \
-    libreadline-dev \
     libssl-dev \
     libtbb-dev \
-    openssl \
     zlib1g-dev && \
   git clone https://github.com/${VMANGOS_OWNER}/${VMANGOS_REPOSITORY}.git /core && \
   cd /core && \
   git checkout ${VMANGOS_REVISION} && \
+  if [ -n "$VMANGOS_PATCHES_REPOSITORY" ]; then \
+    echo "Cloning and applying patches from $VMANGOS_PATCHES_REPOSITORY"; \
+    git clone "$VMANGOS_PATCHES_REPOSITORY" /tmp/patches && \
+    for patch in /tmp/patches/*.patch; do \
+      if [ -f "$patch" ]; then \
+        echo "Applying patch $patch"; \
+        git apply "$patch"; \
+      fi; \
+    done; \
+    rm -rf /tmp/patches; \
+  else \
+    echo "No repository to apply patches from provided."; \
+  fi && \
   mkdir -p \
     /opt/vmangos/config \
-    /opt/vmangos/mmap-config \
     /opt/vmangos/storage/data \
     /opt/vmangos/storage/honor \
     /opt/vmangos/storage/logs && \
   mkdir /core/build && \
   cd /core/build && \
   cmake \
-    -DSUPPORTED_CLIENT_BUILD=${VMANGOS_CLIENT_VERSION} \
+    -DCMAKE_INSTALL_PREFIX=/opt/vmangos ../ \
+    -DUSE_PCH=1 \
     -DUSE_STD_MALLOC=0 \
     -DBUILD_FOR_HOST_CPU=0 \
     -DTBB_DEBUG=0 \
-    -DUSE_ANTICHEAT=${VMANGOS_USE_ANTICHEAT} \
     -DUSE_SCRIPTS=1 \
     -DUSE_EXTRACTORS=1 \
-    -DUSE_LIBCURL=0 \
-    -DDEBUG_SYMBOLS=0 \
-    -DCMAKE_INSTALL_PREFIX=/opt/vmangos ../ && \
+    -DUSE_REALMMERGE=0 \
+    -DENABLE_MAILSENDER=1 \
+    -DSUPPORTED_CLIENT_BUILD=${VMANGOS_CLIENT_VERSION} \
+    -DDEBUG_SYMBOLS=0 && \
   make -j$(nproc) && \
   make install && \
-  mv /core/contrib/mmap/mmap_extract.py /opt/vmangos/bin && \
-  mv /core/contrib/mmap/config.json /opt/vmangos/mmap-config && \
-  mv /core/contrib/mmap/offmesh.txt /opt/vmangos/mmap-config && \
   rm -rf /core && \
   apt clean -y && \
   rm -rf /var/lib/apt/lists/*
@@ -97,16 +106,15 @@ RUN \
   apt update -y && \
   apt install -y \
     curl \
-    libace-dev \
-    libmysqlclient-dev \
-    libreadline-dev \
-    libssl-dev \
-    libtbb-dev \
+    libace-7.1.2 \
+    libcurl4 \
+    libmysqlclient21 \
+    libssl3 \
+    libtbb12 \
     netcat-openbsd \
-    openssl \
     python3 \
     python-is-python3 \
-    zlib1g-dev && \
+    zlib1g && \
   # The Ubuntu 24.04 LTS Docker image has a user called `ubuntu` with UID 1000
   # and GID 1000 by default. Since we allow configuration of the name, UID and
   # GID of the user and group that should be used in the container, we need to
@@ -149,6 +157,7 @@ COPY ./docker/server/docker-cmd-extract-client-data.sh /usr/local/bin/extract-cl
 
 RUN \
   chmod +x /opt/vmangos/bin/* && \
+  find /opt/vmangos/bin/Extractors/ -type f ! -regex ".*\.\(json\|txt\)$" -exec chmod +x {} + && \
   chmod +x /usr/local/bin/mangosd && \
   chmod +x /usr/local/bin/realmd && \
   chmod +x /usr/local/bin/extract-client-data

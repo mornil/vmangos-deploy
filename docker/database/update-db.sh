@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # vmangos-deploy
-# Copyright (C) 2023-present  Michael Serajnik  https://github.com/mserajnik
+# Copyright (C) 2023-2025  Michael Serajnik  https://github.com/mserajnik
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 [ -e /sql/world-new.sql ] && \
-  echo "[vmangos-deploy]: world-new.sql exists, re-creating world database..." && \
+  echo "[vmangos-deploy]: /sql/world-new.sql exists, re-creating world database" && \
   mariadb -u root -p$MARIADB_ROOT_PASSWORD -e \
     "DROP DATABASE IF EXISTS \`mangos\`; \
     CREATE DATABASE \`mangos\` DEFAULT CHARSET utf8 COLLATE utf8_general_ci; \
@@ -25,7 +25,7 @@
     FLUSH PRIVILEGES;" && \
   mariadb -u root -p$MARIADB_ROOT_PASSWORD mangos < /sql/world-new.sql
 
-echo "[vmangos-deploy]: Importing database updates if available..."
+echo "[vmangos-deploy]: Importing database updates if available"
 [ -e /sql/migrations/world_db_updates.sql ] && \
   mariadb -u root -p$MARIADB_ROOT_PASSWORD mangos < /sql/migrations/world_db_updates.sql
 [ -e /sql/migrations/characters_db_updates.sql ] && \

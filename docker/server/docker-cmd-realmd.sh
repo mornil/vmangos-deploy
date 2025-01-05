@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # vmangos-deploy
-# Copyright (C) 2023-present  Michael Serajnik  https://github.com/mserajnik
+# Copyright (C) 2023-2025  Michael Serajnik  https://github.com/mserajnik
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -18,4 +18,11 @@
 
 eval $(fixuid -q)
 
-wait-for-db && exec /opt/vmangos/bin/realmd -c /opt/vmangos/config/realmd.conf
+config_file="/opt/vmangos/config/realmd.conf"
+
+if [ ! -f "$config_file" ]; then
+  echo "[vmangos-deploy]: Configuration file $config_file is missing, exiting" >&2
+  exit 1
+fi
+
+wait-for-db && exec /opt/vmangos/bin/realmd -c $config_file

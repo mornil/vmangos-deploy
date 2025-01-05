@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # vmangos-deploy
-# Copyright (C) 2023-present  Michael Serajnik  https://github.com/mserajnik
+# Copyright (C) 2023-2025  Michael Serajnik  https://github.com/mserajnik
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as published by
@@ -18,45 +18,44 @@
 
 eval $(fixuid -q)
 
-if [ ! -d "/opt/vmangos/storage/client-data" ]; then
-  echo "[vmangos-deploy]: Client data bind mount missing, aborting extraction." >&2
+client_data_dir="/opt/vmangos/storage/client-data"
+extracted_data_dir="/opt/vmangos/storage/extracted-data"
+extractors_dir="/opt/vmangos/bin/Extractors"
+client_version_dir="$extracted_data_dir/$VMANGOS_CLIENT_VERSION"
+
+if [ ! -d "$client_data_dir" ]; then
+  echo "[vmangos-deploy]: Client data bind mount is missing, aborting extraction" >&2
   exit 1
 fi
 
-if [ ! -d "/opt/vmangos/storage/extracted-data" ]; then
-  echo "[vmangos-deploy]: Extracted data bind mount missing, aborting extraction." >&2
+if [ ! -d "$extracted_data_dir" ]; then
+  echo "[vmangos-deploy]: Extracted data bind mount is missing, aborting extraction" >&2
   exit 1
 fi
 
-cd /opt/vmangos/storage/client-data
+cd "$client_data_dir"
 
 if [ ! -d "./Data" ]; then
-  echo "[vmangos-deploy]: Client data missing, aborting extraction." >&2
+  echo "[vmangos-deploy]: Client data is missing, aborting extraction" >&2
   exit 1
 fi
 
 # Remove potentially existing data
-rm -rf ./Buildings
-rm -rf ./Cameras
-rm -rf ./dbc
-rm -rf ./maps
-rm -rf ./mmaps
-rm -rf ./vmaps
+rm -rf ./Buildings ./Cameras ./dbc ./maps ./mmaps ./vmaps
 
-/opt/vmangos/bin/mapextractor
-/opt/vmangos/bin/vmapextractor
-/opt/vmangos/bin/vmap_assembler
-/opt/vmangos/bin/mmap_extract.py --configInputPath /opt/vmangos/mmap-config/config.json --offMeshInput /opt/vmangos/mmap-config/offmesh.txt
+"$extractors_dir/MapExtractor"
+"$extractors_dir/VMapExtractor"
+"$extractors_dir/VMapAssembler"
+"$extractors_dir/mmap_extract.py" \
+  --configInputPath "$extractors_dir/config.json" \
+  --offMeshInput "$extractors_dir/offmesh.txt"
 
 # This data isn't used; we delete it to avoid confusion
-rm -rf ./Buildings
-rm -rf ./Cameras
+rm -rf ./Buildings ./Cameras
 
 # Remove potentially existing extracted data
-rm -rf /opt/vmangos/storage/extracted-data/*
+rm -rf "$extracted_data_dir/*"
 
-mkdir -p "/opt/vmangos/storage/extracted-data/$VMANGOS_CLIENT_VERSION"
-mv ./dbc "/opt/vmangos/storage/extracted-data/$VMANGOS_CLIENT_VERSION/"
-mv ./maps /opt/vmangos/storage/extracted-data/
-mv ./mmaps /opt/vmangos/storage/extracted-data/
-mv ./vmaps /opt/vmangos/storage/extracted-data/
+mkdir -p "$client_version_dir"
+mv ./dbc "$client_version_dir/"
+mv ./maps ./mmaps ./vmaps "$extracted_data_dir/"
